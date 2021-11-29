@@ -1,0 +1,720 @@
+---
+title: "visualv2"
+author: '1'
+date: "2021/5/8"
+output: html_document
+---
+
+
+---
+title: "Untitled"
+author: '1'
+date: "2021/5/8"
+output: html_document
+---
+
+```{r}
+datasetbegin =read.csv("C:/Users/pc/Desktop/527/googleplaystore.csv",header = T, encoding = 'UTF-8')
+dim(datasetbegin)
+dataset = na.omit(datasetbegin)
+Sys.setlocale("LC_TIME","C")
+dataset$Last.Updated = as.Date(dataset$Last.Updated,format = "%B %d, %Y")
+#fix(dataset)
+dataset$add_years = unclass(as.POSIXlt(dataset$Last.Updated))$year + 1900
+dataset$add_month = unclass(as.POSIXlt(dataset$Last.Updated))$mon + 1
+```
+
+
+```{r}
+dataset = subset(dataset,select = -c(Price,Genres,Last.Updated,Current.Ver))
+dim(dataset)
+dataset = na.omit(dataset)
+```
+
+```{r}
+library(tidyr)
+dataset = separate(dataset, Installs, into = c("Installsnew"),sep = "\\+")
+attach(dataset)
+Installsnew = gsub(",","",Installsnew)
+Installsnew = as.numeric(Installsnew)
+dataset$Installsnew = Installsnew
+```
+
+```{r}
+library(tidyverse) 
+library(data.table)
+library(ggplot2)
+dataset %>% filter(dataset$Category != "") %>% group_by(Category) %>% dplyr::summarise(rating = mean(Rating,na.rm = TRUE)) %>% mutate(Category = reorder(Category,rating)) %>% ggplot()+
+geom_bar(aes(Category,rating),stat = "identity",fill = "#01a2d9",alpha = 0.5, width = 0.4)+
+coord_flip()+
+  scale_y_continuous(breaks = seq(0,4.5,0.5),expand = c(0,0))+
+  theme(plot.title = element_text(hjust = 0.5,size = 15))+
+  ggtitle("Rating by Category")+
+  ylab("Rating")+
+  theme(legend.position = "none",
+        panel.grid = element_blank(),
+        axis.text.y = element_text(color = "black",size =10,hjust = 1),
+        axis.ticks.length.x = unit(0.5,"lines"),
+        axis.title = element_text(size = 12),
+        panel.background = element_rect(fill = "white"))
+```
+
+```{r}
+dataset = na.omit(dataset)
+dataset %>%
+  filter(dataset$Category!= "") %>%
+  group_by(Category) %>%
+  dplyr::summarise(Totalinstalls = sum(Installsnew,na.rm = TRUE)) %>%
+  mutate(Category = reorder(Category,Totalinstalls))%>%
+  mutate(Totalinstalls = Totalinstalls / 1000000) %>%
+  ggplot()+
+  theme_bw()+
+  ggtitle("Categories with number of installs")+
+  geom_point(aes(Category,Totalinstalls,color = Category,size = Totalinstalls),alpha = 0.4)+
+  scale_size_continuous(range = c(4,10))+
+  scale_y_continuous(limits = c(0,40000))+
+  ylab("Total Installs (Million)")+
+  theme(
+    axis.text.x = element_text(angle = 45,hjust = 0.95),
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 20)),
+    panel.border = element_rect(color = "white"),
+  )
+```
+
+
+
+
+```{r}
+green_color <- "#69b3a2"
+dataset$Reviews = as.numeric(dataset$Reviews)
+dataset %>%
+  filter(dataset$Category!= "") %>%
+  group_by(Category) %>%
+  dplyr::summarise(Mean_reviews = mean(Reviews,na.rm = TRUE)) %>%
+  mutate(Category = reorder(Category,Mean_reviews))%>%
+  ggplot(aes(x = Mean_reviews,y = Category),alpha = 0.4) + 
+  geom_col(fill=green_color,alpha=0.8) +
+  coord_flip() +
+  labs(x="Mean of reviews",y="Category")+
+  ggtitle("Mean reviews by Categories")+
+   theme(
+    axis.text.x = element_text(angle = 45,hjust = 0.95),
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 20)),
+  )
+```
+
+
+```{r}
+dataset %>%
+  filter(dataset$Category!= "") %>%
+  group_by(Category) %>%
+  dplyr::summarise(Mean_reviewsinstall_rate = mean(Reviews/Installsnew,na.rm = TRUE)) %>%
+  mutate(Category = reorder(Category,Mean_reviewsinstall_rate ))%>%
+  ggplot(aes(x = Mean_reviewsinstall_rate ,y = Category),alpha = 0.4) + 
+  geom_col(fill="#69b3a2",alpha=0.8) +
+  coord_flip() +
+  labs(x="Mean of reviews/installnew rate",y="Category")+
+  ggtitle("Mean reviews/installnew rate by Categories")+
+   theme(
+    axis.text.x = element_text(angle = 45,hjust = 0.95),
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 20)),
+  )
+```
+
+
+```{r}
+dataset <- dataset %>% mutate(Reviews_installrate = Reviews/Installsnew)
+plot(dataset$Reviews_installrate)
+#installnew <500 miss
+```
+
+```{r}
+df <- dataset %>% mutate(Reviews_installrate = Reviews/Installsnew) %>% filter(Installsnew >=10000)
+```
+
+```{r}
+df %>%ggplot()+
+  theme_bw()+
+  ggtitle("Rating with Reviews/Installs rate")+
+  geom_point(aes(Reviews_installrate,Rating),color = "#69b3a2",alpha = 0.4)+
+  #scale_size_continuous(range = c(4,10))+
+ # scale_y_continuous(limits = c(0,40000))+
+  ylab("Ratings")+
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 20)),
+    panel.border = element_rect(color = "white")
+  )
+```
+
+```{r}
+df %>% filter(Category == "GAME")%>%
+  ggplot()+
+  theme_bw()+
+  ggtitle("Rating with Reviews rate(GAME)")+
+  geom_point(aes(Reviews_installrate,Rating),color = "#69b3a2",alpha = 0.4)+
+  geom_point(aes(x = 0.4489172, y = 4.6,stroke = 2),shape = 1, color="#CC0000", size=2.5)+  geom_label(label='	Clash of Clans',x = 0.43, y = 4.4,color='black', alpha= 0.5) +
+  #scale_size_continuous(range = c(4,10))+
+ # scale_y_continuous(limits = c(0,40000))+
+  ylab("Ratings")+
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5),
+    panel.border = element_rect(color = "white")
+  )
+```
+#instogram/ Facebookd
+```{r}
+df %>% filter(Category == "SOCIAL" & Reviews_installrate <=0.1)%>%
+  ggplot()+
+  theme_bw()+
+  ggtitle("Rating with Reviews/Installs rate(SOCIAL)")+
+  geom_point(aes(Reviews_installrate,Rating),color = "#69b3a2",alpha = 0.4)+
+  geom_point(aes(x = 0.06657731, y = 4.5,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+  geom_label(label='Instagram',x = 0.07, y = 4.35,color='black', alpha= 0.5)+ 
+  geom_point(aes(x = 0.07812821, y = 4.1,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+  geom_label(label='Facebook',x = 0.075, y = 3.95,color='black', alpha= 0.5)+
+  geom_point(aes(x = 0.034029574, y = 4.0,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+  geom_label(label='Snapchat',x = 0.035, y = 4.15,color='black', alpha= 0.5)+
+  geom_point(aes(x = 0.004831125, y = 4.2,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+  geom_label(label='Google',x = 0.0051, y = 4.05,color='black', alpha= 0.5)+
+  geom_point(aes(x = 0.017212518, y = 4.3,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+  geom_label(label='Facebook lite',x = 0.019, y = 4.45,color='black', alpha= 0.5)+
+  #scale_size_continuous(range = c(4,10))+
+ # scale_y_continuous(limits = c(0,40000))+
+  ylab("Ratings")+
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 20)),
+    panel.border = element_rect(color = "white")
+    )
+```
+
+```{r}
+df %>% filter(Category == "SOCIAL" & Reviews_installrate <=0.1 & Size == "Varies with device" & Installsnew > 2e+8)%>%
+  ggplot()+
+  theme_bw()+
+  ggtitle("Rating with Reviews rate(SOCIAL)")+
+  geom_point(aes(Reviews_installrate,Rating),color = "#69b3a2",alpha = 0.4)+
+  geom_point(aes(x = 0.06657731, y = 4.5,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+  geom_label(label='Instagram',x = 0.07, y = 4.45,color='black', alpha= 0.5)+ 
+  geom_point(aes(x = 0.07812821, y = 4.1,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+  geom_label(label='Facebook',x = 0.075, y = 4.15,color='black', alpha= 0.5)+
+  geom_point(aes(x = 0.034029574, y = 4.0,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+   geom_label(label='Snapchat',x = 0.035, y = 4.05,color='black', alpha= 0.5)+
+  geom_point(aes(x = 0.004831125, y = 4.2,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+   geom_label(label='Google',x = 0.01, y = 4.15,color='black', alpha= 0.5)+
+  geom_point(aes(x = 0.017212518, y = 4.3,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+  geom_label(label='Facebook lite',x = 0.019, y = 4.25,color='black', alpha= 0.5)+
+  #scale_size_continuous(range = c(4,10))+
+ # scale_y_continuous(limits = c(0,40000))+
+  ylab("Ratings")+
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 20)),
+    panel.border = element_rect(color = "white")
+    )
+```
+
+
+
+
+
+```{r}
+df %>% filter(Category == "COMMUNICATION")%>%
+  ggplot()+
+  theme_bw()+
+  ggtitle("Rating with Reviews rate(Communication)")+
+  geom_point(aes(Reviews_installrate,Rating),color = "#69b3a2",alpha = 0.4)+
+  geom_point(aes(x = 0.1284286, y = 4.3,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+  geom_point(aes(x =0.2374680, y = 4.8,stroke = 2),shape = 1, color="#CC0000", size=2.5)+
+  #scale_size_continuous(range = c(4,10))+
+ # scale_y_continuous(limits = c(0,40000))+
+  ylab("Ratings")+
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5),
+    panel.border = element_rect(color = "white")
+  )
+```
+
+#dummy variable
+```{r}
+dataset$Content.Rating[dataset$Content.Rating == "Everyone 10+"] <- "Everyone_10"
+dataset$Content.Rating[dataset$Content.Rating == "Mature 17+"] <- "Mature_17"
+dataset$Content.Rating[dataset$Content.Rating == "Adults only 18+"] <- "Adults_only_18"
+
+```
+
+```{r}
+library(fastDummies)
+data  = dummy_cols(dataset, select_columns = c("Category", "Content.Rating"),remove_first_dummy = TRUE)
+```
+#charcater varit
+```{r}
+data = subset(data, select = -c(Category, Content.Rating))
+data$Type[dataset$Type == "Free"] = 0
+data$Type[dataset$Type == "Paid"] = 1
+#delete varies with device 
+#table(dataset$Sizenew)
+library(tidyr)
+data = separate(data, Size,into = c("Sizenew"),sep = "M")
+data = data[!data$Sizenew == "Varies with device",]
+
+```
+
+```{r}
+
+dataset1 = separate(data, Sizenew, into = c("Sizenew1"),sep = "k")
+k.index = which(data$Sizenew != dataset1$Sizenew1)
+dataset1$Sizenew1 = as.numeric(dataset1$Sizenew1)
+for (i in k.index){
+  dataset1$Sizenew1[i] = (dataset1$Sizenew1[i]/1024)
+}
+data$Sizenew = dataset1$Sizenew1
+```
+
+```{r}
+data$Android.Ver = substr(data$Android.Ver, 1,3)
+data= data[!data$Android.Ver == "Var",]
+data$Android.Ver = as.numeric(data$Android.Ver)
+data$Type = as.numeric(data$Type)
+data = na.omit(data)
+```
+
+```{r}
+data = data%>% filter(data$Installsnew >= 1000)
+data = data %>% mutate(Rating_install_target = data$Rating*data$Reviews_installrate)
+data = subset(data, select = -c(App,Rating,Reviews,Installsnew,add_years,Reviews_installrate))
+```
+#outlier detection 
+```{r}
+library(OutlierDetection)
+library(OutliersO3)
+library(outliers)
+a = nn(data,k=4)
+for (i in a[2]){
+  data = data[-i,]
+}
+```
+#normalized 1:4 conclumn
+```{r}
+tmp = rep(0,4)
+for (i in 1:4){
+  tmp[i] = max(data[,i])
+  data[,i] = data[,i]/tmp[i]
+}
+```
+# delete content.rating.unrated 
+```{r}
+data = subset(data, select = -c(Content.Rating_Unrated))
+```
+
+```{r}
+summary(data)
+lm.fit = lm(data$Rating_install_target~., data = data)
+summary(lm.fit)
+```
+# plot rating_install target 
+```{r}
+library(ggplot2)
+data %>% ggplot(aes(x=Rating_install_target)) + geom_histogram(color="black", fill="lightblue")+
+  theme(legend.position="none")
+```
+#Spilt the dataset
+```{r}
+set.seed(13)
+train = sample(nrow(data),0.6*nrow(data))
+data.Train = data[train,]
+data.testX=data[-train,"Rating_install_target"]
+```
+
+#knn
+# ```{r}
+# set.seed(133)
+# Train = data[train,]
+# Test=data[-train,]
+# y_train=Train["Rating_install_target"]
+# y_test=Test["Rating_install_target"]
+# dim(Train)
+# dim(Test)
+# X_train=Train[,1:41]
+# X_test=Test[,1:41]
+# ```
+
+# ```{r}
+# Train_X_min=min(X_train)
+# Train_X_max=max(X_train)
+# newTrain_X=(X_train- Train_X_min)/(Train_X_max - Train_X_min)
+# Test_X_min=min(X_test)
+# Test_X_max=max(X_test)
+# newTest_X=(X_test- Test_X_min)/(Test_X_max - Test_X_min)
+# ```
+# 
+# ```{r}
+# library(class)
+# set.seed(1)
+# test_error= rep(0,20)
+# for (K in 1:20){
+# knn.pred = knn(train = newTrain_X,	
+#                test = newTest_X,	
+#                 cl = y_train[,1],	
+#                 k =K) 
+# knn.pred=as.numeric(as.character(knn.pred))
+# test_error[K] = mean((knn.pred-y_test[,1])^2)^0.5
+# }
+# test_error
+# plot(c(1:20),test_error, type = "b")
+# ```
+# 
+# ```{r}
+# set.seed(1)
+# knn.pred = knn(train = newTrain_X,	
+#                test = newTest_X,	
+#                 cl = y_train[,1],
+#                 k =2) 
+# knn.pred=as.numeric(as.character(knn.pred))
+# px=c(1:20)
+# y1=knn.pred[0:20]
+# y2=y_train[,1][0:20]
+# plot(px,y1,col=2,type="b",xlab = "different apps",ylab ="predic y vs test y")
+# lines(px,y2,col=3,type="b")
+# legend("topright",legend=c("y_predict","y_test"),pch=c(20,20),col=c(2,3))
+# 
+# ```
+
+
+
+#xgboost
+
+```{r}
+library(xgboost)
+set.seed(1)
+RMSE_train = rep(0,20)
+RMSE_validation = rep(0,20)
+RMSE_test = rep(0,20)
+eta_variable = seq(0.1,0.29,by = 0.01)
+#max_depth_variable = seq(1,10, by = 1)
+#subsample_varibale = seq(0.5,1,by = 0.1)
+for (i in 1:20){
+ xgbcv = xgb.cv(data = data.matrix(data.Train[,-41]), 
+ label = data.Train$Rating_install_target, 
+ eta = eta_variable[i],
+ max_depth = 8, 
+ nround = 30, 
+ subsample = 1,
+ nfold=5,
+ early_stopping_rounds = 3,
+objective = "reg:squarederror",
+)
+RMSE_train[i] = min(xgbcv$evaluation_log$train_rmse_mean)
+RMSE_validation[i] = min(xgbcv$evaluation_log$test_rmse_mean)
+xgb = xgboost(data = data.matrix(data.Train[,-41]), 
+ label = data.Train$Rating_install_target, 
+ eta = eta_variable[i],
+ max_depth = 8, 
+ nround = 30, 
+ subsample = 1,
+ early_stopping_rounds = 3,
+objective = "reg:squarederror",
+)
+datamodel_xgboost = predict(xgb, newdata = data.matrix(data[-train,-41]))
+RMSE_test[i] = mean((datamodel_xgboost -data.testX)^2)^0.5
+}
+plot(eta_variable ,RMSE_test, xlab = "eta", ylab = "RMSE",type = "b")
+```
+
+
+
+
+#tunning parameter 
+```{r}
+library(xgboost)
+set.seed(1)
+xgb = xgboost(data = data.matrix(data.Train[,-41]), 
+ label = data.Train$Rating_install_target, 
+ eta = 0.2,
+ max_depth = 8, 
+ nround = 30, 
+ subsample = 1,
+ early_stopping_rounds = 3,
+objective = "reg:squarederror",
+)
+names = dimnames(data.matrix(data.Train[,-41]))[[2]]
+importance_matrix = xgb.importance(names, model = xgb)
+xgb.plot.importance(importance_matrix[1:20,], col = green_color)
+datamodel_xgboost = predict(xgb, newdata = data.matrix(data[-train,-41]))
+mean((datamodel_xgboost -data.testX)^2)^0.5
+```
+
+```{r}
+Target_hat = predict(xgb, newdata = data.matrix(data[train,-41]))
+data_s = data.frame(data[train,],Target_hat)
+data_s$Sizenew_raw = data_s$Sizenew*100
+data_s$Type_raw = data_s$Type*1
+data_s$Android.Ver_raw = data_s$Android.Ver*8
+data_s$add_month_raw = data_s$add_month*12
+```
+
+#transfer dummy variables into the category
+```{r}
+data_s <- data_s %>% 
+  mutate(Content.Rating_Adults_only_18 = ifelse((Content.Rating_Everyone + Content.Rating_Everyone_10 + Content.Rating_Mature_17 + Content.Rating_Teen) == 0 , 1, 0)) 
+attach(data_s)
+data_s <- data_s %>% 
+  mutate(Category_ART_AND_DESIGN = ifelse((Category_AUTO_AND_VEHICLES + Category_BEAUTY + Category_BOOKS_AND_REFERENCE + Category_BUSINESS + Category_COMICS +
+Category_COMMUNICATION +Category_DATING+Category_EDUCATION+          
+Category_ENTERTAINMENT+Category_EVENTS+Category_FAMILY+             
+Category_FINANCE+Category_FOOD_AND_DRINK+Category_GAME+               
+Category_HEALTH_AND_FITNESS+  Category_HOUSE_AND_HOME     +Category_LIBRARIES_AND_DEMO +
+Category_LIFESTYLE          +Category_MAPS_AND_NAVIGATION+Category_MEDICAL            +
+Category_NEWS_AND_MAGAZINES +Category_PARENTING          +Category_PERSONALIZATION    +
+Category_PHOTOGRAPHY        +Category_PRODUCTIVITY       +Category_SHOPPING           +
+Category_SOCIAL             +Category_SPORTS             +Category_TOOLS              +
+Category_TRAVEL_AND_LOCAL   +Category_VIDEO_PLAYERS      +Category_WEATHER) == 0 , 1, 0)) 
+
+
+# function to reconstruct from dummy
+catmaker <- function(data, varnames, catname) {
+
+  data[,catname] <- apply(data[,varnames], 1, function(i) varnames[which(i == 1)])
+
+  return(data)
+
+}
+data_s <- catmaker(data =data_s, varnames = c("Content.Rating_Everyone","Content.Rating_Everyone_10",    "Content.Rating_Mature_17","Content.Rating_Teen","Content.Rating_Adults_only_18"), catname = "Content.Rating_raw")
+data_s <- catmaker(data=data_s, varnames = c("Category_ART_AND_DESIGN","Category_AUTO_AND_VEHICLES","Category_BEAUTY", "Category_BOOKS_AND_REFERENCE" ,"Category_BUSINESS" ,            "Category_COMICS"              
+,"Category_COMMUNICATION"  ,      "Category_DATING",               "Category_EDUCATION"           
+,"Category_ENTERTAINMENT"   ,     "Category_EVENTS" ,              "Category_FAMILY"              
+,"Category_FINANCE"    ,   "Category_FOOD_AND_DRINK" ,      "Category_GAME"                
+,"Category_HEALTH_AND_FITNESS",   "Category_HOUSE_AND_HOME",       "Category_LIBRARIES_AND_DEMO"  
+,"Category_LIFESTYLE" ,           "Category_MAPS_AND_NAVIGATION",  "Category_MEDICAL"             
+,"Category_NEWS_AND_MAGAZINES",   "Category_PARENTING",            "Category_PERSONALIZATION"     
+,"Category_PHOTOGRAPHY",          "Category_PRODUCTIVITY",         "Category_SHOPPING"            
+,"Category_SOCIAL",         "Category_SPORTS",               "Category_TOOLS"               
+,"Category_TRAVEL_AND_LOCAL",     "Category_VIDEO_PLAYERS",        "Category_WEATHER" ), catname = "Category")
+
+data_s$Content.Rating_raw_cleaned <- stringr::str_remove(data_s$Content.Rating_raw, "Content.Rating_")
+data_s$Category_raw_cleaned <- stringr::str_remove(data_s$Category, "Category_")
+```
+#plot the type with Target_value 
+```{r}
+yhat_p0 <- ggplot(data_s, aes(x=as.factor(Type), y=Target_hat)) + 
+  geom_boxplot(fill=green_color)  +  
+  coord_cartesian(ylim=c(0, 1)) + 
+  stat_summary(fun = mean, geom = "errorbar", aes(ymax = ..y.., ymin = ..y..),
+                 width = .75, linetype = "dashed",color = "red")+
+  labs(x="Type",y="Target value")+
+  ggtitle("Type  with Target value(Free vs Paid)")+
+   theme(
+    axis.text.x = element_text(hjust = 0.5,size =12,vjust=3),
+    axis.title.x=element_text(vjust=3,  size=15), 
+    axis.title.y=element_text(size=15), 
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 10)),
+  )
+yhat_p0
+```
+#plot Content Rating with Target value
+```{r}
+yhat_p <- ggplot(data_s, aes(x=Content.Rating_raw_cleaned, y=Target_hat)) + 
+  geom_boxplot(fill=green_color)  +  
+  coord_cartesian(ylim=c(0, 1)) + 
+  stat_summary(fun = mean, geom = "errorbar", aes(ymax = ..y.., ymin = ..y..),
+                 width = .75, linetype = "dashed",color = "red")+
+  labs(x="Content Rating",y="Target value")+
+  ggtitle("Content Rating with Target value")+
+   theme(
+    axis.text.x = element_text(hjust = 0.5,size =12,vjust=3),
+    axis.title.x=element_text(vjust=3,  size=15), 
+    axis.title.y=element_text(size=15), 
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 10)),
+  )
+yhat_p
+```
+
+```{r}
+yhat_p2 <- ggplot(data_s, aes(x=Category_raw_cleaned, y=Target_hat)) + 
+  geom_boxplot(fill=green_color) +  
+  coord_cartesian(ylim=c(0, 1)) + 
+  stat_summary(fun = mean, geom = "errorbar", aes(ymax = ..y.., ymin = ..y..),
+                 width = .75, linetype = "dashed", color = "red")+
+  labs(x="Category",y="Y_hat(Target_value)")+
+  ggtitle("Categories with Y_hat(Target_value)")+
+   theme(
+    axis.text.x = element_text(angle = 45,hjust = 0.95),
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 20)),
+  )
+yhat_p2
+```
+#plot category the target value 
+```{r}
+data_s %>% group_by(Category_raw_cleaned) %>% summarise(mean_yhat = mean(Target_hat))%>% mutate(Category_raw_cleaned = reorder(Category_raw_cleaned,mean_yhat)) %>% ungroup() %>%
+  ggplot() + 
+  geom_point(aes(x=as.factor(Category_raw_cleaned), y=mean_yhat,color = Category_raw_cleaned,size = mean_yhat),alpha = 0.4) + 
+  geom_line(aes(x=as.factor(Category_raw_cleaned), y=mean_yhat), color = green_color)+
+    labs(x="Category",y="Target value")+
+  ggtitle("Categories with Target value")+
+   theme(
+    axis.text.x = element_text(angle = 45,hjust = 0.95),
+    legend.position = "none",
+    axis.title.x=element_text(vjust=3,  size=15), 
+    axis.title.y=element_text(size=15), 
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 10)),
+  )
+```
+#plot top 5 category the target value 
+```{r}
+data_s %>% filter(Category_raw_cleaned %in% c("WEATHER","GAME","SOCIAL","SPORTS","FAMILY","EDUCATION")) %>% 
+  ggplot(aes(x=as.factor(Category_raw_cleaned), y=Target_hat)) + 
+  geom_boxplot(fill=green_color) +  
+  coord_cartesian(ylim=c(0, 1)) + 
+  stat_summary(fun = mean, geom = "errorbar", aes(ymax = ..y.., ymin = ..y..),
+                 width = .75, linetype = "dashed", color = "red")+
+  labs(x="Category",y="Target value")+
+  ggtitle("Categories with Target value")+
+  theme(
+    axis.text.x = element_text(hjust = 0.5),
+    legend.position = "none",
+    axis.title.x=element_text(vjust=1,  size=15), 
+    axis.title.y=element_text(size=15), 
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 10)),
+  )
+```
+
+# ```{r}
+# x<- data.matrix(subset(data.Train, select = -Rating_install_target))
+# pdp_plot <- partial(xgb, pred.var = "Sizenew", ice=FALSE, center = TRUE, plot = TRUE, rug = TRUE, alpha=0.1, plot.engine = "ggplot2", train = x,type = "regression")
+# pdp_plot
+# ```
+
+# ```{r}
+# yhat_p2 <- ggpoint(data_s, aes(x=as.factor(add_month_raw), y=Target_hat)) + 
+#   geom_boxplot(fill=green_color) +  
+#   coord_cartesian(ylim=c(0, 1)) + 
+#   stat_summary(fun.y = mean, geom = "errorbar", aes(ymax = ..y.., ymin = ..y..),
+#                  width = .75, linetype = "dashed")
+# yhat_p2
+# ```
+
+# plot month with Target_value
+```{r}
+data_s %>% group_by(add_month_raw) %>% summarise(mean_yhat = mean(Target_hat)) %>% ungroup() %>%
+  ggplot() +  labs(x="Month",y="Target_value")+
+  geom_point(aes(x=as.factor(add_month_raw), y=mean_yhat)) + 
+  geom_line(aes(x=add_month_raw, y=mean_yhat), color = green_color)+
+  ggtitle("Month with Target_value")+
+   theme(
+    axis.text.x = element_text(hjust = 0.5,size =12,vjust=3),
+    axis.title.x=element_text(vjust=3,  size=15), 
+    axis.title.y=element_text(size=15), 
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 10)),
+  )
+```
+
+```{r}
+data_s %>% 
+group_by(Sizenew_raw) %>% summarise(mean_yhat = mean(Target_hat)) %>% ungroup() %>%
+  ggplot() +  labs(x="Size",y="Target_value")+
+  coord_cartesian(ylim=c(0, 0.8))+ 
+  geom_point(aes(x=Sizenew_raw, y=mean_yhat)) + 
+  ggtitle("Size with Target_value")+
+   theme(
+    axis.text.x = element_text(hjust = 0.5,size =12,vjust=3),
+    axis.title.x=element_text(vjust=3,  size=15), 
+    axis.title.y=element_text(size=15), 
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 10)),
+  )
+```
+
+```{r}
+data_s %>% mutate(Android.Ver_raw = as.character(Android.Ver_raw)) %>%
+  ggplot(aes(x=Android.Ver_raw, y=Target_hat)) +  labs(x="Andro",y="Y_hat(Target_value)")+
+  #geom_point(aes(x=data_s$Android.Ver_raw, y=Target_hat)) + 
+  geom_boxplot(fill=green_color)+
+  ggtitle("Android.Ver with Y_hat(Target_value)")+
+  stat_summary(fun = mean, geom = "errorbar", aes(ymax = ..y.., ymin = ..y..),width = .75, linetype = "dashed", color = "red")+
+   theme(
+    axis.text.x = element_text(hjust = 0.95),
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 20)),
+  )+ coord_cartesian(ylim=c(0, 0.5)) 
+
+
+```
+```
+
+#SVM
+# ```{r}
+# library(e1071)
+# rate.fit.svm = svm(Rating_install_target~., data = data.Train , kernel ="radial", gamma = 0.01, cost = 2.511886)
+# mean((rate.fit.svm$residuals)^2)^0.5
+# datamodel_ratehatsvm = predict(rate.fit.svm, newdata = data[-train,])
+# mean((datamodel_ratehatsvm-data.testX)^2)^0.5
+# ```
+
+
+
+
+# ```{r}
+# tune.out = tune(svm, Rating_install_target~., data = data.Train ,kernel ="radial", gamma =10, ranges = list(cost = 10^seq(-2, 1, by = 0.2)), tunecontrol = tune.control(cross= 5))
+# summary(tune.out)
+# ```
+# ```{r}
+# a  = summary(tune.out)
+# a$performances
+# 
+# ```{r}
+# library(e1071)
+# rate.fit.svm = svm(Rating_install_target~., data = data.Train , kernel ="sigmoid", gamma = 0.001, cost = 2.511886)
+# mean((rate.fit.svm$residuals)^2)^0.5
+# datamodel_ratehatsvm = predict(rate.fit.svm, newdata = data[-train,])
+# mean((datamodel_ratehatsvm-data.testX)^2)^0.5
+# ```
+# ```{r}
+# library(randomForest)
+# set.seed(1)
+# train.errors.randomforest = rep(0, 10)
+# test.errors.randomforest  = rep(0, 10)
+#  for (i in 1:10){
+# rate.fit.randomforest = randomForest(Rating_install_target~., data = data.Train,mtry= 2*i,ntree =1000, importance=TRUE)
+# train.errors.randomforest[i] =(mean((rate.fit.randomforest$predicted-rate.fit.randomforest$y)^2))^0.5
+#  data_ratehat = predict(rate.fit.randomforest, newdata = data[-train,])
+#  test.errors.randomforest[i] =  mean((data_ratehat-data.testX)^2)^0.5
+# }
+# plot(c(32:41),test.errors.randomforest, type = "b", xlab ="number of feature", ylab ="RMSE")
+# ```
+# 
+# ```{r}
+# library(randomForest)
+# set.seed(1)
+# train.errors.randomforesttree = rep(0, 10)
+# test.errors.randomforesttree  = rep(0, 10)
+#  for (i in 1:10){
+# rate.fit.randomforest = randomForest(Rating_install_target~., data = data.Train,mtry= 12,ntree =100 *i, importance=TRUE)
+# train.errors.randomforesttree[i] = (mean((rate.fit.randomforest$predicted-rate.fit.randomforest$y)^2))^0.5
+# data_ratehat = predict(rate.fit.randomforest, newdata = data[-train,])
+# test.errors.randomforesttree[i] =  mean((data_ratehat-data.testX)^2)^0.5
+# }
+# ```
+# random forest 
+# ```{r}
+# library(randomForest)
+# set.seed(1)
+# train.errors.randomforesttree = rep(0, 5)
+# test.errors.randomforesttree  = rep(0, 5)
+# for (i in 1:5){
+# + rate.fit.randomforest = randomForest(Rating_install_target~., data = data.Train,mtry= 12,ntree =500 *i, importance=TRUE)
+# + train.errors.randomforesttree[i] = (mean((rate.fit.randomforest$predicted-rate.fit.randomforest$y)^2))^0.5
+# data_ratehat = predict(rate.fit.randomforest, newdata = data[-train,])
+# test.errors.randomforesttree[i] =  mean((data_ratehat-data.testX)^2)^0.5
+# }
+# ```
+

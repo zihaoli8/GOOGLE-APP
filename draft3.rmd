@@ -1,0 +1,166 @@
+---
+title: "visualv2"
+author: '1'
+date: "2021/5/8"
+output: html_document
+---
+
+
+---
+title: "Untitled"
+author: '1'
+date: "2021/5/8"
+output: html_document
+---
+
+```{r}
+datasetbegin =read.csv("C:/Users/pc/Desktop/527/googleplaystore.csv",header = T, encoding = 'UTF-8')
+dim(datasetbegin)
+dataset = na.omit(datasetbegin)
+Sys.setlocale("LC_TIME","C")
+dataset$Last.Updated = as.Date(dataset$Last.Updated,format = "%B %d, %Y")
+#fix(dataset)
+dataset$add_years = unclass(as.POSIXlt(dataset$Last.Updated))$year + 1900
+dataset$add_month = unclass(as.POSIXlt(dataset$Last.Updated))$mon + 1
+```
+
+
+```{r}
+dataset = subset(dataset,select = -c(Price,Genres,Last.Updated,Current.Ver))
+dim(dataset)
+dataset = na.omit(dataset)
+```
+
+```{r}
+library(tidyr)
+dataset = separate(dataset, Installs, into = c("Installsnew"),sep = "\\+")
+attach(dataset)
+Installsnew = gsub(",","",Installsnew)
+Installsnew = as.numeric(Installsnew)
+dataset$Installsnew = Installsnew
+```
+
+```{r}
+library(tidyverse) 
+library(data.table)
+library(ggplot2)
+```
+
+```{r}
+dataset = na.omit(dataset)
+```
+
+```{r}
+dataset$Reviews = as.numeric(dataset$Reviews)
+dataset <- dataset %>% mutate(Reviews_installrate = Reviews/Installsnew)
+```
+
+
+
+
+
+#charcater varit
+```{r}
+library(tidyr)
+data = separate(dataset, Size,into = c("Sizenew"),sep = "M")
+data1 = data[!data$Sizenew == "Varies with device",]
+data2 = data[data$Sizenew == "Varies with device",]
+```
+
+```{r}
+dataset1 = separate(data1, Sizenew, into = c("Sizenew1"),sep = "k")
+k.index = which(data1$Sizenew != dataset1$Sizenew1)
+dataset1$Sizenew1 = as.numeric(dataset1$Sizenew1)
+for (i in k.index){
+  dataset1$Sizenew1[i] = (dataset1$Sizenew1[i]/1024)
+}
+data1$Sizenew = dataset1$Sizenew1
+```
+
+
+```{r}
+data1 = data1 %>% mutate(Rating_install_target = data1$Rating*data1$Reviews_installrate)
+data2 = data2 %>% mutate(Rating_install_target = data2$Rating*data2$Reviews_installrate)
+```
+
+
+```{r}
+data1$Sizenew = "Certain Size"
+data_com = rbind(data1, data2)  
+
+```
+
+```{r}
+library(ggplot2)
+data_com %>% 
+  ggplot(aes(x=Sizenew, y= log(Installsnew,10))) +
+  geom_boxplot(fill="#69b3a2")+
+  labs(x="Size",y="Installs")+
+  ggtitle("APP Size with Installs(log10)")+
+  stat_summary(fun = mean, geom = "errorbar", aes(ymax = ..y.., ymin = ..y..),
+                 width = .75, linetype = "dashed", color = "red")+
+   theme(
+    axis.text.x = element_text(hjust = 0.5,size =12,vjust=3),
+    axis.title.x=element_text(vjust=3,  size=15), 
+    axis.title.y=element_text(size=15), 
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 10)),
+  )
+```
+```{r}
+data_com %>% 
+  ggplot(aes(x=Sizenew, y= Rating_install_target)) +
+  geom_boxplot(fill="#69b3a2")+
+  coord_cartesian(ylim=c(0, 0.4))+
+  labs(x="Size",y="Target value")+
+  ggtitle("APP Size with Target value")+
+  stat_summary(fun = mean, geom = "errorbar", aes(ymax = ..y.., ymin = ..y..),
+                 width = .75, linetype = "dashed", color = "red")+
+   theme(
+    axis.text.x = element_text(hjust = 0.5,size =12,vjust=3),
+    axis.title.x=element_text(vjust=3,  size=15), 
+    axis.title.y=element_text(size=15), 
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 10)),
+  )
+```
+
+```{r}
+data_com$Android.Ver[which(data_com$Android.Ver != "Varies with device")] = "Certain Version"
+```
+
+```{r}
+data_com %>% 
+  ggplot(aes(x=Android.Ver, y= log(Installsnew,10))) +
+  geom_boxplot(fill="#69b3a2")+
+  labs(x="Android Version",y="Installs")+
+  ggtitle("Android Version with Installs(log10)")+
+  stat_summary(fun = mean, geom = "errorbar", aes(ymax = ..y.., ymin = ..y..),
+                 width = .75, linetype = "dashed", color = "red")+
+   theme(
+    axis.text.x = element_text(hjust = 0.5,size =12,vjust=3),
+    axis.title.x=element_text(vjust=3,  size=15), 
+    axis.title.y=element_text(size=15), 
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 10)),
+  )
+```
+
+```{r}
+data_com %>% 
+  ggplot(aes(x=Android.Ver, y= Rating_install_target)) +
+  geom_boxplot(fill="#69b3a2")+
+  coord_cartesian(ylim=c(0, 0.4))+
+  labs(x="Android Version",y="Target value")+
+  ggtitle("Android Version with Target value")+
+  stat_summary(fun = mean, geom = "errorbar", aes(ymax = ..y.., ymin = ..y..),
+                 width = .75, linetype = "dashed", color = "red")+
+   theme(
+    axis.text.x = element_text(hjust = 0.5,size =12,vjust=3),
+    axis.title.x=element_text(vjust=3,  size=15), 
+    axis.title.y=element_text(size=15), 
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5,margin = margin(b = 10)),
+  )
+```
+```
